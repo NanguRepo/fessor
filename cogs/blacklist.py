@@ -1,20 +1,24 @@
+"""This cog adds the blacklist command, which lets admins block strings from chat"""
+# pylint: disable=unspecified-encoding
+import configparser
 import discord
 from discord.ext import commands
-import functions.utils
-import configparser
 import discord_slash
 from discord_slash import cog_ext
 from discord_slash.utils.manage_commands import create_option, create_choice
+import functions.utils # pylint: disable=import-error
 
 class Blacklist(commands.Cog):
+    """Blacklist cog"""
     def __init__(self, bot):
+        """Loads the cog"""
         self.bot = bot
 
     @cog_ext.cog_slash(name="blacklist",
-                        description="Add terms to a list, and certain things will happen when said term is spoken.",
+                        description="Add terms to a list to block them.",
                         guild_ids=functions.utils.servers,
                         default_permission=False,
-                        permissions=functions.utils.slPerms("admin"),
+                        permissions=functions.utils.slash_perms("admin"),
                         options=[
                             create_option(
                                 name="action",
@@ -38,31 +42,29 @@ class Blacklist(commands.Cog):
                                 option_type=3,
                                 required=True
                             )
-                        ]
+                        ] + functions.utils.privateOption
     )
 
-    async def blacklist(self, ctx: discord_slash.SlashContext, action, string):
-      config = configparser.ConfigParser()
-      config.read('configs/config.ini')
-      oldCfg = config['blacklist']['list'].split(', ')
-      output = "Error"
-      #if len(args) == 0:
-        #output = config['blacklist']['list']
-        #await ctx.send(embed=discord.Embed(title="Blacklist", description=output))
-        #return
-      #else:
-      if action == "add":
-        oldCfg.append(string)
-        output = "Successfully added %s to the blacklist!" % (string)
-      if action == "remove":
-        oldCfg.remove(string)
-        output = "Successfully removed %s from the blacklist!" % (string)
-      newCfg = ', '.join(oldCfg)
-      config['blacklist']['list'] = newCfg
-      with open('configs/config.ini', 'w') as configfile:
-        config.write(configfile)
-      embed=discord.Embed(title=output, description="", color=0xFF0000)
-      await ctx.send(embed=embed)
+    async def blacklist(self, ctx: discord_slash.SlashContext, **kwargs):
+        """The blacklist command"""
+        ephemeral = functions.utils.ephemeral_check(**kwargs)
+        config = configparser.ConfigParser()
+        config.read('configs/config.ini')
+        old_cfg = config['blacklist']['list'].split(', ')
+        output = "Error"
+        if kwargs["action"] == "add":
+            old_cfg.append(kwargs["string"])
+            output = "Successfully added %s to the blacklist!" % (kwargs["string"])
+        if kwargs["action"] == "remove":
+            old_cfg.remove(kwargs["string"])
+            output = "Successfully removed %s from the blacklist!" % (kwargs["string"])
+        new_cfg = ', '.join(old_cfg)
+        config['blacklist']['list'] = new_cfg
+        with open('configs/config.ini', 'w') as configfile:
+            config.write(configfile)
+        embed=discord.Embed(title=output, description="", color=0xFF0000)
+        await ctx.send(embed=embed, hidden=ephemeral)
 
 def setup(bot):
+    """Adds the cog"""
     bot.add_cog(Blacklist(bot))
